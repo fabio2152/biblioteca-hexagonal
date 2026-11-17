@@ -1,0 +1,44 @@
+### Peticiones para la demo (IntelliJ HTTP Client o la extensión REST Client de VS Code)
+
+### 1. Ver libros
+GET http://localhost:8080/api/libros
+
+### 2. Ver socios (Carla tiene multa pendiente)
+GET http://localhost:8080/api/socios
+
+### 3. Prestar un libro disponible -> 201
+POST http://localhost:8080/api/prestamos
+Content-Type: application/json
+
+{ "codigoSocio": "S002", "codigoLibro": "LIB-02" }
+
+### 4. Regla: libro ya prestado -> 409
+POST http://localhost:8080/api/prestamos
+Content-Type: application/json
+
+{ "codigoSocio": "S002", "codigoLibro": "LIB-01" }
+
+### 5. Regla: socio con multa pendiente -> 409
+POST http://localhost:8080/api/prestamos
+Content-Type: application/json
+
+{ "codigoSocio": "S003", "codigoLibro": "LIB-03" }
+
+### 6. Devolver un libro vencido -> genera multa de S/ 6.00 para Ana
+POST http://localhost:8080/api/devoluciones
+Content-Type: application/json
+
+{ "codigoLibro": "LIB-01" }
+
+### 7. Préstamos de Ana
+GET http://localhost:8080/api/socios/S001/prestamos
+
+### 8. Ana paga su multa
+POST http://localhost:8080/api/socios/S001/pagos
+
+### 9. Regla: máximo 3 préstamos activos.
+### Bruno ya tiene LIB-02: prestar LIB-04, luego LIB-05, y el tercero (LIB-06) se rechaza con 409
+POST http://localhost:8080/api/prestamos
+Content-Type: application/json
+
+{ "codigoSocio": "S002", "codigoLibro": "LIB-04" }
