@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biblioteca</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232f5d50' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5a2.5 2.5 0 0 0 0 5H19'/%3E%3C/svg%3E">
+<!--
+  Adaptador de entrada web (interfaz gráfica).
+  Solo habla con la API REST (/api/...). No contiene reglas de negocio:
+  cuando una operación no se permite, muestra el mensaje que devuelve el dominio.
+-->
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #faf8f4;
+    --border: #e4e0d6;
+    --text: #1f2421;
+    --muted: #6b716c;
+    --accent: #2f5d50;
+    --accent-hover: #244a40;
+    --accent-soft: #e3ede9;
+    --ok: #2f7a4f;
+    --ok-soft: #e2f1e7;
+    --warn: #9a5b00;
+    --warn-soft: #fbeed6;
+    --danger: #b3362c;
+    --danger-soft: #f8e3e0;
+    --shadow: 0 1px 2px rgba(31, 36, 33, .06), 0 4px 16px rgba(31, 36, 33, .05);
+    --radius: 12px;
+    --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141716;
+      --surface: #1c201f;
+      --surface-2: #222726;
+      --border: #313836;
+      --text: #e8ebe9;
+      --muted: #9aa39f;
+      --accent: #7fbfa9;
+      --accent-hover: #9bd0bd;
+      --accent-soft: #23332e;
+      --ok: #7ccf9b;
+      --ok-soft: #1f3327;
+      --warn: #f0b45c;
+      --warn-soft: #3a2e1a;
+      --danger: #f08a80;
+      --danger-soft: #3d2220;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  button, select, input { font: inherit; color: inherit; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  header .wrap {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding-top: 18px; padding-bottom: 18px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand svg { width: 34px; height: 34px; color: var(--accent); flex: none; }
+  .brand h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+  .brand p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  main { padding: 24px 0 48px; }
+
+  .stats {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .stat .label { color: var(--muted); font-size: 13px; }
+  .stat .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .stat .value small { font-size: 14px; color: var(--muted); font-weight: 500; }
+
+  .grid { display: grid; gap: 24px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .card + .card { margin-top: 24px; }
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .card-head h2 { margin: 0; font-size: 16px; }
+  .card-head .hint { color: var(--muted); font-size: 13px; }
+  .card-body { padding: 16px; }
+
+  /* Formulario de préstamo */
+  .form-row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr auto; align-items: end; }
+  @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  select {
+    width: 100%; padding: 9px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-2);
+  }
+  select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .btn {
+    border: 1px solid transparent; border-radius: 8px; padding: 9px 14px;
+    cursor: pointer; font-weight: 550; white-space: nowrap;
+    transition: background .15s, border-color .15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn-primary { color: #10201b; } }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: transparent; border-color: var(--border); }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-sm { padding: 5px 10px; font-size: 13px; }
+  .btn[disabled] { opacity: .55; cursor: progress; }
+
+  /* Libros */
+  .books { list-style: none; margin: 0; padding: 0; }
+  .book {
+    display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px;
+    align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  .book:last-child { border-bottom: 0; }
+  .code { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .book .title { font-weight: 600; }
+  .book .meta { color: var(--muted); font-size: 13px; }
+  .book .meta strong { color: var(--text); font-weight: 550; }
+  .book .actions { display: flex; align-items: center; gap: 8px; }
+  @media (max-width: 560px) {
+    .book { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .book .actions { justify-content: space-between; }
+  }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .badge-ok { background: var(--ok-soft); color: var(--ok); }
+  .badge-warn { background: var(--warn-soft); color: var(--warn); }
+  .badge-danger { background: var(--danger-soft); color: var(--danger); }
+  .badge-muted { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* Socios */
+  .member { border-bottom: 1px solid var(--border); }
+  .member:last-child { border-bottom: 0; }
+  .member-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px;
+  }
+  .member .name { font-weight: 600; }
+  .member .email { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .member .right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .fine { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .fine.zero { color: var(--muted); font-weight: 500; }
+  .fine.pending { color: var(--danger); }
+
+  .loans { background: var(--surface-2); border-top: 1px dashed var(--border); padding: 8px 16px 12px; }
+  .loans table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .loans th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 4px; }
+  .loans td { padding: 6px 4px; border-top: 1px solid var(--border); vertical-align: top; }
+  .loans .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+  .table-scroll { overflow-x: auto; }
+
+  .link {
+    background: none; border: 0; padding: 0; color: var(--accent);
+    cursor: pointer; font-size: 13px; font-weight: 550;
+  }
+  .link:hover { text-decoration: underline; }
+
+  /* Registro de llamadas */
+  .log { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 12px; max-height: 260px; overflow: auto; }
+  .log li { display: grid; grid-template-columns: 44px 38px minmax(0, 1fr); gap: 8px; padding: 6px 16px; border-bottom: 1px solid var(--border); }
+  .log li:last-child { border-bottom: 0; }
+  .log .m { font-weight: 700; }
+  .log .s-2 { color: var(--ok); }
+  .log .s-4, .log .s-5, .log .s-0 { color: var(--danger); }
+  .log .path { overflow-wrap: anywhere; }
+  .log .msg { grid-column: 3; color: var(--muted); font-family: system-ui, sans-serif; }
+  .log-empty { color: var(--muted); padding: 12px 16px; font-size: 13px; }
+
+  .rules { margin: 0; padding: 0 16px 14px 34px; color: var(--muted); font-size: 13px; }
+  .rules li { margin: 4px 0; }
+  .rules-note { margin: 0; padding: 10px 16px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .rules-note code, footer code { font-family: var(--mono); font-size: 12px; }
+
+  /* Avisos */
+  .toasts { position: fixed; right: 16px; bottom: 16px; left: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; z-index: 10; }
+  .toast {
+    max-width: 420px; width: 100%; pointer-events: auto;
+    background: var(--surface); border: 1px solid var(--border); border-left-width: 4px;
+    border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
+    animation: in .2s ease-out;
+  }
+  .toast.ok { border-left-color: var(--ok); }
+  .toast.error { border-left-color: var(--danger); }
+  .toast strong { display: block; font-size: 14px; }
+  .toast span { color: var(--muted); font-size: 13px; }
+  @keyframes in { from { transform: translateY(8px); opacity: 0; } }
+
+  .banner {
+    display: none; margin-bottom: 16px; padding: 12px 16px; border-radius: 10px;
+    background: var(--danger-soft); color: var(--danger); font-weight: 550;
+  }
+  .banner.show { display: block; }
+
+  footer { color: var(--muted); font-size: 13px; padding: 0 0 32px; }
+  footer code { font-family: var(--mono); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5a2.5 2.5 0 0 0 0 5H19"/><path d="M9 7h6"/>
+      </svg>
+      <div>
+        <h1>Biblioteca</h1>
+        <p>Préstamos, devoluciones y multas · Arquitectura hexagonal</p>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="refresh" type="button">Actualizar</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="banner" id="banner">No se pudo conectar con la API. ¿Está corriendo la aplicación?</div>
+
+  <section class="stats" aria-label="Resumen">
+    <div class="stat"><div class="label">Libros disponibles</div><div class="value" id="st-disp">–</div></div>
+    <div class="stat"><div class="label">Préstamos activos</div><div class="value" id="st-act">–</div></div>
+    <div class="stat"><div class="label">Socios con multa</div><div class="value" id="st-conmulta">–</div></div>
+    <div class="stat"><div class="label">Multas por cobrar</div><div class="value" id="st-multas">–</div></div>
+  </section>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <div class="card-head"><h2>Nuevo préstamo</h2><span class="hint">POST /api/prestamos</span></div>
+        <form class="card-body form-row" id="form-prestamo">
+          <div>
+            <label for="sel-socio">Socio</label>
+            <select id="sel-socio" required></select>
+          </div>
+          <div>
+            <label for="sel-libro">Libro</label>
+            <select id="sel-libro" required></select>
+          </div>
+          <button class="btn btn-primary" type="submit">Prestar</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Libros</h2><span class="hint" id="libros-hint"></span></div>
+        <ul class="books" id="libros"></ul>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <div class="card-head"><h2>Socios</h2><span class="hint">GET /api/socios</span></div>
+        <div id="socios"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Reglas del negocio</h2><span class="hint">viven en el dominio</span></div>
+        <ul class="rules">
+          <li>Un libro prestado no se puede volver a prestar.</li>
+          <li>Máximo 3 préstamos activos por socio.</li>
+          <li>Con multa pendiente no se pueden pedir libros.</li>
+          <li>El préstamo vence a los 14 días.</li>
+          <li>Cada día de retraso suma S/ 1.00 de multa.</li>
+        </ul>
+        <p class="rules-note">Esta página no las valida: el formulario deja intentar cualquier préstamo y,
+          si rompe una regla, el servidor responde <code>409</code> con el mensaje del dominio.
+          Los valores están en <code>PoliticaPrestamo</code>.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Llamadas a la API</h2>
+          <button class="link" id="clear-log" type="button">Limpiar</button>
+        </div>
+        <div class="log-empty" id="log-empty">Aquí aparecen las peticiones que hace esta página.</div>
+        <ul class="log" id="log"></ul>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer class="wrap">
+  Esta página es otro adaptador de entrada: solo llama a la API REST. Las reglas viven en el dominio,
+  así que si algo no se permite, el mensaje que ves viene de él (por ejemplo, un <code>409</code>).
+</footer>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+  const estado = { libros: [], socios: [], prestamos: {}, abiertos: new Set() };
+  const $ = (id) => document.getElementById(id);
+  const soles = (n) => 'S/ ' + Number(n || 0).toFixed(2);
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function fecha(iso) {
+    if (!iso) return '—';
+    const [a, m, d] = iso.split('-');
+    return `${d}/${m}/${a}`;
+  }
+
+  // ---- Llamadas a la API (con registro visible) ----
+  async function api(metodo, ruta, cuerpo, { registrar = true } = {}) {
+    let status = 0, datos = null;
+    try {
+      const res = await fetch(ruta, {
+        method: metodo,
+        headers: cuerpo ? { 'Content-Type': 'application/json' } : {},
+        body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+      });
+      status = res.status;
+      const texto = await res.text();
+      datos = texto ? JSON.parse(texto) : null;
+      $('banner').classList.remove('show');
+    } catch (e) {
+      $('banner').classList.add('show');
+      datos = { mensaje: 'Sin conexión con la API' };
+    }
+    if (registrar) anotar(metodo, ruta, status, status >= 400 || status === 0 ? datos?.mensaje : null);
+    if (status >= 200 && status < 300) return datos;
+    const err = new Error(datos?.mensaje || `Error ${status}`);
+    err.status = status;
+    throw err;
+  }
+
+  function anotar(metodo, ruta, status, mensaje) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="m">${esc(metodo)}</span><span class="s-${String(status)[0]}">${status || 'ERR'}</span>` +
+      `<span class="path">${esc(ruta)}</span>` + (mensaje ? `<span class="msg">${esc(mensaje)}</span>` : '');
+    $('log').prepend(li);
+    $('log-empty').style.display = 'none';
+  }
+
+  function aviso(tipo, titulo, detalle) {
+    const t = document.createElement('div');
+    t.className = 'toast ' + tipo;
+    t.innerHTML = `<strong>${esc(titulo)}</strong>` + (detalle ? `<span>${esc(detalle)}</span>` : '');
+    $('toasts').appendChild(t);
+    setTimeout(() => t.remove(), 5000);
+  }
+
+  // ---- Carga de datos ----
+  async function cargar() {
+    const [libros, socios] = await Promise.all([
+      api('GET', '/api/libros', null, { registrar: false }),
+      api('GET', '/api/socios', null, { registrar: false }),
+    ]);
+    const listas = await Promise.all(
+      socios.map((s) => api('GET', `/api/socios/${encodeURIComponent(s.codigo)}/prestamos`, null, { registrar: false }))
+    );
+    estado.libros = libros;
+    estado.socios = socios;
+    estado.prestamos = Object.fromEntries(socios.map((s, i) => [s.codigo, listas[i]]));
+    pintar();
+  }
+
+  function prestamosActivos() {
+    return Object.values(estado.prestamos).flat().filter((p) => p.estado === 'ACTIVO');
+  }
+
+  // ---- Pintado ----
+  // Solo se muestran datos que entrega la API. Nada se calcula aquí con reglas del negocio
+  // (disponibilidad, vencimiento, multas y límites los decide el dominio en el servidor).
+  function pintar() {
+    const activos = prestamosActivos();
+    const porLibro = Object.fromEntries(activos.map((p) => [p.codigoLibro, p]));
+    const nombre = Object.fromEntries(estado.socios.map((s) => [s.codigo, s.nombre]));
+    const disponibles = estado.libros.filter((l) => l.disponible);
+    const multas = estado.socios.reduce((a, s) => a + Number(s.multaPendiente), 0);
+
+    $('st-disp').innerHTML = `${disponibles.length} <small>de ${estado.libros.length}</small>`;
+    $('st-act').textContent = activos.length;
+    $('st-conmulta').textContent = estado.socios.filter((s) => Number(s.multaPendiente) > 0).length;
+    $('st-multas').textContent = soles(multas);
+    $('libros-hint').textContent = `${disponibles.length} disponibles`;
+
+    // Selects del formulario (conservan la selección)
+    const selS = $('sel-socio'), selL = $('sel-libro');
+    const prevS = selS.value, prevL = selL.value;
+    selS.innerHTML = estado.socios.map((s) =>
+      `<option value="${esc(s.codigo)}">${esc(s.codigo)} · ${esc(s.nombre)}${Number(s.multaPendiente) > 0 ? ' (multa ' + soles(s.multaPendiente) + ')' : ''}</option>`).join('');
+    selL.innerHTML = estado.libros.map((l) =>
+      `<option value="${esc(l.codigo)}">${esc(l.codigo)} · ${esc(l.titulo)}${l.disponible ? '' : ' (prestado)'}</option>`).join('');
+    if ([...selS.options].some((o) => o.value === prevS)) selS.value = prevS;
+    if ([...selL.options].some((o) => o.value === prevL)) selL.value = prevL;
+    else if (disponibles[0]) selL.value = disponibles[0].codigo;
+
+    // Libros
+    $('libros').innerHTML = estado.libros.map((l) => {
+      const p = porLibro[l.codigo];
+      let badge = '<span class="badge badge-ok">Disponible</span>';
+      let meta = esc(l.autor);
+      let accion = `<button class="btn btn-ghost btn-sm" data-prestar="${esc(l.codigo)}" type="button">Prestar</button>`;
+      if (!l.disponible) {
+        accion = `<button class="btn btn-ghost btn-sm" data-devolver="${esc(l.codigo)}" type="button">Devolver</button>`;
+        badge = '<span class="badge badge-warn">Prestado</span>';
+        if (p) meta += ` · <strong>${esc(nombre[p.codigoSocio] || p.codigoSocio)}</strong>, vence ${fecha(p.fechaVencimiento)}`;
+      }
+      return `<li class="book">
+        <span class="code">${esc(l.codigo)}</span>
+        <div><div class="title">${esc(l.titulo)}</div><div class="meta">${meta}</div></div>
+        <div class="actions">${badge}${accion}</div>
+      </li>`;
+    }).join('');
+
+    // Socios
+    $('socios').innerHTML = estado.socios.map((s) => {
+      const lista = estado.prestamos[s.codigo] || [];
+      const act = lista.filter((p) => p.estado === 'ACTIVO').length;
+      const multa = Number(s.multaPendiente);
+      const abierto = estado.abiertos.has(s.codigo);
+      const titulo = Object.fromEntries(estado.libros.map((l) => [l.codigo, l.titulo]));
+      const filas = lista.map((p) => {
+        const est = p.estado === 'DEVUELTO'
+          ? `<span class="badge badge-muted">Devuelto ${fecha(p.fechaDevolucion)}</span>`
+          : '<span class="badge badge-warn">Activo</span>';
+        return `<tr><td><span class="code">${esc(p.codigoLibro)}</span><br>${esc(titulo[p.codigoLibro] || '')}</td>
+          <td>${fecha(p.fechaPrestamo)}</td><td>${fecha(p.fechaVencimiento)}</td>
+          <td>${est}${Number(p.multa) > 0 ? '<br>multa ' + soles(p.multa) : ''}</td></tr>`;
+      }).join('');
+      return `<div class="member">
+        <div class="member-row">
+          <div>
+            <div class="name">${esc(s.nombre)} <span class="code">${esc(s.codigo)}</span></div>
+            <div class="email">${esc(s.email)}</div>
+            <button class="link" data-toggle="${esc(s.codigo)}" type="button" aria-expanded="${abierto}">
+              ${abierto ? 'Ocultar' : 'Ver'} préstamos (${act} activo${act === 1 ? '' : 's'})
+            </button>
+          </div>
+          <div class="right">
+            <span class="fine ${multa > 0 ? 'pending' : 'zero'}">${multa > 0 ? soles(multa) : 'Sin multa'}</span>
+            ${multa > 0 ? `<button class="btn btn-ghost btn-sm" data-pagar="${esc(s.codigo)}" type="button">Pagar multa</button>` : ''}
+          </div>
+        </div>
+        ${abierto ? `<div class="loans">${lista.length
+          ? `<div class="table-scroll"><table><thead><tr><th>Libro</th><th>Prestado</th><th>Vence</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table></div>`
+          : '<div class="empty">Sin préstamos registrados.</div>'}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // ---- Operaciones ----
+  async function operar(boton, fn) {
+    if (boton) boton.disabled = true;
+    try {
+      await fn();
+    } catch (e) {
+      aviso('error', e.status === 409 ? 'Operación no permitida' : 'No se pudo completar', e.message);
+    } finally {
+      if (boton) boton.disabled = false;
+      await cargar().catch(() => {});
+    }
+  }
+
+  function prestar(codigoSocio, codigoLibro, boton) {
+    return operar(boton, async () => {
+      const p = await api('POST', '/api/prestamos', { codigoSocio, codigoLibro });
+      const libro = estado.libros.find((l) => l.codigo === codigoLibro);
+      aviso('ok', 'Préstamo registrado', `${libro ? libro.titulo : codigoLibro} · vence el ${fecha(p.fechaVencimiento)}`);
+    });
+  }
+
+  function devolver(codigoLibro, boton) {
+    return operar(boton, async () => {
+      const p = await api('POST', '/api/devoluciones', { codigoLibro });
+      const multa = Number(p.multa);
+      aviso('ok', 'Libro devuelto', multa > 0 ? `Llegó tarde: multa de ${soles(multa)} para ${p.codigoSocio}` : 'A tiempo, sin multa');
+    });
+  }
+
+  function pagar(codigo, boton) {
+    return operar(boton, async () => {
+      const r = await api('POST', `/api/socios/${encodeURIComponent(codigo)}/pagos`);
+      aviso('ok', 'Multa pagada', `${codigo} pagó ${soles(r.montoPagado)}`);
+    });
+  }
+
+  $('form-prestamo').addEventListener('submit', (e) => {
+    e.preventDefault();
+    prestar($('sel-socio').value, $('sel-libro').value, e.submitter);
+  });
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.prestar) {
+      $('sel-libro').value = b.dataset.prestar;
+      $('sel-socio').focus();
+      $('form-prestamo').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (b.dataset.devolver) {
+      devolver(b.dataset.devolver, b);
+    } else if (b.dataset.pagar) {
+      pagar(b.dataset.pagar, b);
+    } else if (b.dataset.toggle) {
+      const c = b.dataset.toggle;
+      estado.abiertos.has(c) ? estado.abiertos.delete(c) : estado.abiertos.add(c);
+      pintar();
+    }
+  });
+
+  $('refresh').addEventListener('click', () => cargar().catch(() => {}));
+  $('clear-log').addEventListener('click', () => { $('log').innerHTML = ''; $('log-empty').style.display = ''; });
+
+  cargar().catch(() => {});
+</script>
+</body>
+</html>

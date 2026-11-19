@@ -20,6 +20,7 @@ Los valores (3, 14 y S/ 1.00) están en `PoliticaPrestamo`.
 
 ```mermaid
 flowchart LR
+    WEB["Interfaz web<br/>(static/index.html)"]
     subgraph ENT["Adaptadores de entrada"]
         REST["BibliotecaController<br/>(API REST)"]
         CLI["BibliotecaCli<br/>(línea de comandos)"]
@@ -37,6 +38,7 @@ flowchart LR
         JPA["JPA + H2 / PostgreSQL<br/>(perfil jpa)"]
         LOG["ConsolaNotificador"]
     end
+    WEB -- "HTTP / JSON" --> REST
     REST --> PE
     CLI --> PE
     MEM -. implementa .-> PS
@@ -45,6 +47,8 @@ flowchart LR
 ```
 
 Todas las dependencias apuntan hacia el núcleo: los adaptadores de entrada **llaman** a los puertos de entrada y los adaptadores de salida **implementan** los puertos de salida.
+
+La interfaz web queda **fuera** del hexágono: es un cliente más del adaptador REST, igual que curl o `requests.http`. No conoce los casos de uso ni el dominio. Solo hace peticiones HTTP y muestra lo que responde el servidor.
 
 ### Pieza por pieza
 
@@ -57,6 +61,7 @@ Todas las dependencias apuntan hacia el núcleo: los adaptadores de entrada **ll
 | Adaptadores de entrada | `infrastructure/in/web/BibliotecaController`, `infrastructure/in/cli/BibliotecaCli` |
 | Adaptadores de salida | `infrastructure/out/persistence/memoria/*`, `infrastructure/out/persistence/jpa/*`, `infrastructure/out/notificacion/ConsolaNotificador` |
 | Conexión de todo | `infrastructure/config/CasosDeUsoConfig` |
+| Interfaz web (cliente de la API) | `src/main/resources/static/index.html` |
 
 ### Estructura de carpetas
 
@@ -98,7 +103,7 @@ Decisiones a destacar:
 ## Cómo ejecutar
 
 ```bash
-git clone https://github.com/[usuario]/[repositorio].git
+git clone https://github.com/fabio2152/biblioteca-hexagonal.git
 cd biblioteca-hexagonal
 mvn clean package          # compila y corre todas las pruebas
 ```
@@ -110,6 +115,10 @@ java -jar target/biblioteca-hexagonal.jar
 ```
 
 En el log aparece `Adaptador de persistencia activo: MemoriaLibroRepository`.
+
+Abre **http://localhost:8080** para usar la interfaz web: lista de libros y socios, formulario de préstamo, devoluciones, pago de multas y un registro de cada llamada a la API con su código de respuesta. La interfaz no valida las reglas del negocio: si un préstamo no se permite, el `409` y su mensaje vienen del dominio.
+
+Con los otros perfiles la interfaz sigue funcionando igual, porque solo depende de la API.
 
 ### 2. API REST con base de datos (H2 en archivo)
 
@@ -169,9 +178,11 @@ Se cargan al arrancar si la base está vacía:
 
 ## Guion de la demo
 
+Los pasos 1 a 4 se pueden hacer desde la interfaz web en http://localhost:8080 o con `requests.http`.
+
 1. Arrancar la API en memoria y mostrar `GET /api/libros`.
 2. Prestar `LIB-02` a Bruno → `201`.
-3. Intentar prestar `LIB-01` (ya prestado) → `409`. Intentar prestar a Carla (multa) → `409`.
+3. Intentar prestar `LIB-01` (ya prestado) → `409`. Intentar prestar a Carla (multa) → `409`. En la web, el aviso muestra el mensaje que devolvió el dominio.
 4. Devolver `LIB-01` → multa de S/ 6.00 para Ana. Mostrar la notificación en el log.
 5. **Cambiar el adaptador:** detener la app, arrancarla con `--spring.profiles.active=jpa` y mostrar en el log que ahora usa `JpaLibroRepository`. Repetir un préstamo y verlo en la consola H2.
 6. **Otro adaptador de entrada:** con la API corriendo, abrir otra terminal con `--spring.profiles.active=jpa,cli`, prestar un libro y comprobarlo con `GET /api/libros`.
